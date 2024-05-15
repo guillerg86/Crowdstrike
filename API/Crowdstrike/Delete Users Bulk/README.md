@@ -13,3 +13,4 @@ Por defecto hace una simulacion (no lo borrará). Para ejecutar el borrado se ha
 |`--ssl-verify`|`True`|`True` / `False`: Permite indicar si es necesario verificar el SSL|
 |`--debug`|`False`|`True` / `False`|
 |`--action`|`simulate`|`simulate` / `delete`: Permite simular el borrado de usuarios|
+|`--connect-child`|`True`|`True` / `False`: Permite indicar si ha de conectar a los tenant hijos en caso de tenerlos|
