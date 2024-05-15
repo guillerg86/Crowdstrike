@@ -12,4 +12,4 @@ Por defecto hace una simulacion (no lo borrará). Para ejecutar el borrado se ha
 |-|-|-|
 |`--ssl-verify`|`True`|`True` / `False`: Permite indicar si es necesario verificar el SSL|
 |`--debug`|`False`|`True` / `False`|
-|`--action`|`simulate` / `delete`: Permite simular el borrado de usuarios|
+|`--action`|`simulate`|`simulate` / `delete`: Permite simular el borrado de usuarios|
