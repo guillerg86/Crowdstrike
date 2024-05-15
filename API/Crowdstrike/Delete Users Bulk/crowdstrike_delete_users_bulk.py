@@ -8,7 +8,7 @@ def configure_parser():
         prog="Crowdstrike Falcon Bulk User Delete", 
         description="Herramienta para eliminar usuarios obsoletos del Tenant de Crowdstrike"
     )
-    parser.add_argument("--ssl-verify",type=bool, default=False)
+    parser.add_argument("--ssl-verify",type=bool, default=True)
     parser.add_argument("--debug",type=bool,default=False)
     parser.add_argument("--action",choices=["simulate","delete"],default="simulate")
     parser.add_argument("--connect-child",type=bool,default=True)
