@@ -1,0 +1,2 @@
+usuario1@midominio.com
+usuario2@midominio.com
