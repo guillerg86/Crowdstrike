@@ -1,6 +1,6 @@
 from falconpy import APIHarnessV2
 from dotenv import dotenv_values
-from ..crowdstrike_dao import CrowdstrikeUserManagementDao
+from crowdstrike_dao import CrowdstrikeDao
 import argparse
 
 def configure_parser():
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     args = configure_parser()
     config = dotenv_values(".env")
 
-    crowd_dao = CrowdstrikeUserManagementDao() 
+    crowd_dao = CrowdstrikeDao() 
     crowd_dao.login(client_id=config["CLIENT_ID"],client_secret=config["CLIENT_SECRET"],parent_tenant_name="Parent Tenant",connect_child_tenants=args.connect_child, ssl_verify=args.ssl_verify)
 
     with open("usuarios_baja.txt","r") as f:

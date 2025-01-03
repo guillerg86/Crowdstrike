@@ -1,7 +1,10 @@
 ##############################################################################
 # Modulo con las funciones para gestionar usuarios con la API de Crowdstrike
 # @author: Guille Rodríguez González 
-# @version: 2024.05.15
+# 
+# CHANGELOG: 
+# @version: 2025.01.03-1021 - Host find, get & hide (delete) 
+# @version: 2024.05.09-1245 - User functions
 ##############################################################################
 from falconpy import APIHarnessV2
 import copy
@@ -12,7 +15,7 @@ class VariableIsNotDictInstanceException(Exception):
         self.variable = variable
         super().__init__(message)
 
-class CrowdstrikeUserManagementDao(object):
+class CrowdstrikeDao(object):
 ##########################################################################################
 # PRIVATE METHODS
 ##########################################################################################
@@ -22,7 +25,7 @@ class CrowdstrikeUserManagementDao(object):
             "client_id": None,
             "client_secret": None,
             "debug": False,
-            "ssl_verify": True,
+            "ssl_verify": False,
         }
 
     def __set_tenant_config(self,client_id, client_secret):
@@ -66,61 +69,7 @@ class CrowdstrikeUserManagementDao(object):
         @return array
         """
         return self.__tenant_connections
-
-
-    def find_user(self, email, tenant_connection):
-        """
-        Busca al usuario en el tenant proporcionado
-      
-        @param email: Email del usuario a buscar
-        @param falcon_connection: Conexión del tenant
-        @return dict or None: Devuelve un diccionario con la información del usuario si lo ha encontrado
-        """
-        response = tenant_connection.command("RetrieveUserUUID", uid=email)["body"].get("resources")
-        if response and len(response) > 0:
-            return tenant_connection.command("RetrieveUser", ids=response[0])["body"]["resources"][0]
-        return None
-
-
-    def get_user_by_email(self,email):
-        """
-        Busca al usuario en todos los tenant disponibles y obtiene su información. 
-        Adicionalmente, añade información del tenant en el que se ha encontrado
-       
-        @param email: Email del usuario a buscar
-        @return dict or None: Devuelve un diccionario con la información del usuario si lo ha encontrado, añade los campos con el id del tenant
-        """
-        for tenant in self.__tenant_connections:
-            user = self.find_user(email,tenant["connection"])
-            if user:
-                user["tenant"] = {"name":tenant['name'], "cid":tenant['cid']}
-                return user
-        return None    
-        
-
-    def delete_user(self,user):
-        """
-        Recibe un diccionario con la información del usuario y el tenant donde está dado de alta por lo general el extraido de get_user_by_email.
-        Ejemplo generado por get_user_by_email:
-        {'firstName': 'Usuario', 'lastName': 'Apellido', 'uid': 'user@mail.com', 'uuid': '07b61a51-02c9-4617-b5a0-9570346f1xtz', 'customer': '7884018e3gx74eb28370sx224a9e2473', 'status': 'active', 'tenant': {'name': 'Parent Tenant', 'cid': None}}
-        
-        @param user: Diccionario con la información del usuario. Información mínima {"uuid":"user_uuid", "tenant":{"cid": "tenant_cid"}} -> Si es el parent, el tenant_cid ha de ser None
-        @return bool: Si encuentra y ELIMINA al usuario devuelve True, en cualquier otro caso devuelve False
-        """
-        if not isinstance(user,dict):
-            raise VariableIsNotDictInstanceException(user)
-      
-        tenant_cid = user.get("tenant").get("cid")
-        # Buscamos el tenant a través del CID
-        for tenant in self.__tenant_connections:
-            if tenant.get("cid") == tenant_cid:
-                response = tenant["connection"].command("DeleteUser",user_uuid=user['uuid'])
-                if response.get('status_code') == 200:
-                    return True
-        return False
-
-
-
+    
     def login(self,client_id,client_secret,connect_child_tenants=True,ssl_verify=True, debug=False, parent_tenant_name="Parent Tenant"):
         """
         Conecta al tenant mediante las credenciales de la API proporcionadas
@@ -144,7 +93,97 @@ class CrowdstrikeUserManagementDao(object):
                 else:
                     raise ConnectionError(f"No se pudo conectar con la API de Crowdstrike al tenant {child['name']} con cid {child['cid']}")
 
-            
+##########################################################################################
+# USER METHODS
+##########################################################################################
+
+    def find_user(self, email, tenant_connection):
+        """
+        Busca al usuario en el tenant proporcionado
+        Ejemplo de retorno de usuario encontrado:
+        {'firstName': 'Usuario', 'lastName': 'Apellido', 'uid': 'user@ciberseguretat.cat', 'uuid': '07b61a51-00e5-4947-b5a0-1520456f1c1b', 'customer': '9889013e3aa74eb28370dc224a9e2066', 'status': 'active'}
+        
+        @param email: Email del usuario a buscar
+        @param falcon_connection: Conexión del tenant
+        @return dict or None: Devuelve un diccionario con la información del usuario si lo ha encontrado
+        """
+        response = tenant_connection.command("RetrieveUserUUID", uid=email)["body"].get("resources")
+        if response and len(response) > 0:
+            return tenant_connection.command("RetrieveUser", ids=response[0])["body"]["resources"][0]
+        return None
+
+
+    def get_user_by_email(self,email):
+        """
+        Busca al usuario en todos los tenant disponibles y obtiene su información. 
+        Adicionalmente, añade información del tenant en el que se ha encontrado
+        Ejemplo de retorno de usuario encontrado:
+        {'firstName': 'Usuario', 'lastName': 'Apellido', 'uid': 'user@ciberseguretat.cat', 'uuid': '07b61a51-00e5-4947-b5a0-1520456f1c1b', 'customer': '9889013e3aa74eb28370dc224a9e2066', 'status': 'active', 'tenant': {'name': 'ACC Parent Tenant', 'cid': None}}
+
+        @param email: Email del usuario a buscar
+        @return dict or None: Devuelve un diccionario con la información del usuario si lo ha encontrado, añade los campos con el id del tenant
+        """
+        for tenant in self.__tenant_connections:
+            user = self.find_user(email,tenant["connection"])
+            if user:
+                user["tenant"] = {"name":tenant['name'], "cid":tenant['cid']}
+                return user
+        return None    
+        
+
+    def delete_user(self,user):
+        """
+        Recibe un diccionario con la información del usuario y el tenant donde está dado de alta por lo general el extraido de get_user_by_email.
+        Ejemplo generado por get_user_by_email:
+        {'firstName': 'Usuario', 'lastName': 'Apellido', 'uid': 'user@ciberseguretat.cat', 'uuid': '07b61a51-00e5-4947-b5a0-1520456f1c1b', 'customer': '9889013e3aa74eb28370dc224a9e2066', 'status': 'active', 'tenant': {'name': 'ACC Parent Tenant', 'cid': None}}
+        
+        @param user: Diccionario con la información del usuario. Información mínima {"uuid":"user_uuid", "tenant":{"cid": "tenant_cid"}} -> Si es el parent, el tenant_cid ha de ser None
+        @return bool: Si encuentra y ELIMINA al usuario devuelve True, en cualquier otro caso devuelve False
+        """
+        if not isinstance(user,dict):
+            raise VariableIsNotDictInstanceException(user)
+      
+        tenant_cid = user.get("tenant").get("cid")
+        # Buscamos el tenant a través del CID
+        for tenant in self.__tenant_connections:
+            if tenant.get("cid") == tenant_cid:
+                response = tenant["connection"].command("DeleteUser",user_uuid=user['uuid'])
+                if response.get('status_code') == 200:
+                    return True
+        return False
+
+
+##########################################################################################
+# HOST METHODS
+##########################################################################################    
+
+    def find_device(self,hostname,tenant_connection):        
+        response = tenant_connection.command("QueryDevicesByFilter", filter=f"hostname:'{hostname}'").get('body',{}).get('resources',None)
+        if response and len(response)>0:
+            return tenant_connection.command("GetDeviceDetails", ids=response[0])["body"]["resources"][0]
+        return None
+
+    def get_device_by_hostname(self,hostname):
+        for tenant in self.__tenant_connections:
+            #if tenant.get('name') == "ACC Parent Tenant":
+            #    continue
+            device = self.find_device(hostname,tenant["connection"])
+            if device:
+                device["tenant"] = {"name":tenant['name'], "cid":tenant['cid']}
+                return device
+        return None    
+    
+    def delete_host(self,device):
+        body = {"ids":[device.get('device_id')],}
+        tenant_cid = device.get("tenant").get("cid")
+        for tenant in self.__tenant_connections:
+            if tenant.get("cid") == tenant_cid:
+                response = tenant["connection"].command("PerformActionV2",action_name="hide_host",body=body)
+                #print(response)
+                sc = response.get('status_code')
+                if sc >= 200 and sc <= 299:
+                    return True
+        return False
 
 
         
