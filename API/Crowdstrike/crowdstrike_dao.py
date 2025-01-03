@@ -165,8 +165,6 @@ class CrowdstrikeDao(object):
 
     def get_device_by_hostname(self,hostname):
         for tenant in self.__tenant_connections:
-            #if tenant.get('name') == "ACC Parent Tenant":
-            #    continue
             device = self.find_device(hostname,tenant["connection"])
             if device:
                 device["tenant"] = {"name":tenant['name'], "cid":tenant['cid']}
